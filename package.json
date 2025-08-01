@@ -1,0 +1,30 @@
+{
+  "name": "sse-format-converter-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for converting SSE (Server-Sent Events) data formats",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "sse-converter": "./converter.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js",
+    "convert": "node converter.js"
+  },
+  "keywords": [
+    "mcp",
+    "sse",
+    "server-sent-events",
+    "format-converter",
+    "model-context-protocol"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

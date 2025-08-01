@@ -10,16 +10,15 @@ class SSEFormatConverter {
     const result = [];
     let currentEvent = null;
     let currentData = null;
-    let currentTimestamp = baseTimestamp || Date.now().toString();
 
     for (const line of lines) {
       if (line.startsWith('event:')) {
         if (currentEvent) {
+          const timestamp = this.extractTimestamp(currentData, baseTimestamp);
           result.push({
-            timestamp: currentTimestamp,
+            timestamp: timestamp,
             value: this.formatSSEValue(currentEvent, currentData)
           });
-          currentTimestamp = (parseInt(currentTimestamp) + Math.random() * 1000 + 100).toString();
         }
         
         currentEvent = line.substring(6);
@@ -27,24 +26,42 @@ class SSEFormatConverter {
       } else if (line.startsWith('data:')) {
         currentData = line.substring(5);
       } else if (line.trim() === '' && currentEvent) {
+        const timestamp = this.extractTimestamp(currentData, baseTimestamp);
         result.push({
-          timestamp: currentTimestamp,
+          timestamp: timestamp,
           value: this.formatSSEValue(currentEvent, currentData)
         });
-        currentTimestamp = (parseInt(currentTimestamp) + Math.random() * 1000 + 100).toString();
         currentEvent = null;
         currentData = null;
       }
     }
 
     if (currentEvent) {
+      const timestamp = this.extractTimestamp(currentData, baseTimestamp);
       result.push({
-        timestamp: currentTimestamp,
+        timestamp: timestamp,
         value: this.formatSSEValue(currentEvent, currentData)
       });
     }
 
     return result;
+  }
+
+  static extractTimestamp(data, fallbackTimestamp = null) {
+    if (!data) {
+      return fallbackTimestamp || Date.now().toString();
+    }
+
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.timestamp) {
+        return parsed.timestamp.toString();
+      }
+    } catch (e) {
+      // 如果不是JSON格式，忽略错误
+    }
+
+    return fallbackTimestamp || Date.now().toString();
   }
 
   static formatSSEValue(event, data) {
@@ -56,26 +73,21 @@ class SSEFormatConverter {
     return result;
   }
 
-  static convertFromObject(sseObject, timestamp = null) {
-    const { event, data, sseId, eventIndex, content, ...otherFields } = sseObject;
+  static convertFromObject(sseObject, fallbackTimestamp = null) {
+    const { event, data, timestamp, ...otherFields } = sseObject;
     
     let dataString = '';
     if (data) {
       dataString = typeof data === 'string' ? data : JSON.stringify(data);
-    } else if (sseId || eventIndex !== undefined || content) {
-      const dataObj = {
-        ...(sseId && { sseId }),
-        ...(eventIndex !== undefined && { eventIndex }),
-        ...(content && { content }),
-        ...(timestamp && { timestamp }),
-        ...otherFields
-      };
-      dataString = JSON.stringify(dataObj);
+    } else {
+      dataString = JSON.stringify(otherFields);
     }
 
     const eventType = event || 'message';
+    const finalTimestamp = timestamp || fallbackTimestamp || Date.now().toString();
+    
     const result = {
-      timestamp: timestamp || Date.now().toString(),
+      timestamp: finalTimestamp.toString(),
       value: this.formatSSEValue(eventType, dataString)
     };
 
