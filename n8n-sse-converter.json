@@ -1,0 +1,118 @@
+{
+  "name": "SSE数据转换器 - 完整版",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-node",
+      "name": "开始转换",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 在这里输入或粘贴您的SSE数据\n// 可以是单个事件或多个事件\n\nconst sseData = `event:onlineSearch\ndata:{\"eventIndex\":3,\"content\":{\"details\":[{\"stage\":\"webSearchKeywords\",\"title\":\"3个搜索关键词\",\"content\":[\"2025年8月1日 今日新闻\",\"2025年8月1日 国内国际新闻\",\"2025年8月1日 热点事件\"],\"icon\":\"\",\"url\":\"\",\"toolName\":null}]}}\n\nevent:webSearch\ndata:{\"sub_type\":\"webSearch\",\"eventIndex\":4,\"type\":\"ClientEvent\",\"content\":\"全网收集资料中\"}\n\nevent:webSearch\ndata:{\"sub_type\":\"webSearch\",\"eventIndex\":5,\"type\":\"ClientEvent\",\"content\":\"分析海量数据中\"}\n`;\n\n// 返回数据给下一个节点\nreturn {\n  rawSseData: sseData,\n  format: 'single',\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "code-input",
+      "name": "输入SSE数据",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:3001/api/convert/sse-data",
+        "authentication": "none",
+        "requestMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "rawData",
+              "value": "={{ $json.rawSseData }}"
+            },
+            {
+              "name": "format",
+              "value": "={{ $json.format }}"
+            }
+          ]
+        }
+      },
+      "id": "http-request",
+      "name": "调用转换API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 处理API响应结果\nconst response = $input.first().json;\n\nconsole.log('收到API响应:', JSON.stringify(response, null, 2));\n\nif (!response.success) {\n  return {\n    status: 'error',\n    message: '❌ 转换失败',\n    error: response.error,\n    rawResponse: response\n  };\n}\n\nconst convertedEvents = response.data || [];\nconst results = [];\n\n// 解析每个转换后的事件\nfor (let i = 0; i < convertedEvents.length; i++) {\n  const event = convertedEvents[i];\n  const sseValue = event.value;\n  \n  // 提取事件类型\n  const eventTypeMatch = sseValue.match(/event:([^\\n]+)/);\n  const eventType = eventTypeMatch ? eventTypeMatch[1].trim() : 'unknown';\n  \n  // 提取数据内容\n  const dataMatch = sseValue.match(/data:([^\\n]+)/);\n  let parsedData = null;\n  let dataError = null;\n  \n  if (dataMatch) {\n    try {\n      parsedData = JSON.parse(dataMatch[1].trim());\n    } catch (e) {\n      dataError = `JSON解析失败: ${e.message}`;\n      parsedData = dataMatch[1].trim(); // 保留原始数据\n    }\n  }\n  \n  results.push({\n    序号: i + 1,\n    事件类型: eventType,\n    时间戳: event.timestamp,\n    数据内容: parsedData,\n    解析错误: dataError,\n    原始SSE: sseValue.trim()\n  });\n}\n\nreturn {\n  status: 'success',\n  message: `✅ 成功转换 ${response.count} 个SSE事件`,\n  总事件数: response.count,\n  转换格式: response.format,\n  处理时间: new Date().toISOString(),\n  详细结果: results,\n  API响应: response\n};"
+      },
+      "id": "process-result",
+      "name": "处理转换结果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "开始转换": {
+      "main": [
+        [
+          {
+            "node": "输入SSE数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "输入SSE数据": {
+      "main": [
+        [
+          {
+            "node": "调用转换API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "调用转换API": {
+      "main": [
+        [
+          {
+            "node": "处理转换结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

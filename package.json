@@ -9,6 +9,8 @@
   },
   "scripts": {
     "start": "node index.js",
+    "start:http": "node http-server.js",
+    "start:dev": "nodemon http-server.js",
     "test": "node test.js",
     "convert": "node converter.js"
   },
@@ -22,7 +24,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=18.0.0"
