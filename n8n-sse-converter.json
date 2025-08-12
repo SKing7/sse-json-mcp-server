@@ -74,6 +74,19 @@
         840,
         300
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 格式化最终输出，便于查看\nconst input = $input.first().json;\n\n// 如果转换成功，提取关键信息\nif (input.status === 'success') {\n  console.log('=== SSE转换成功! ===');\n  console.log(`转换了 ${input.总事件数} 个SSE事件`);\n  console.log('详细结果:');\n  \n  input.详细结果.forEach((event, index) => {\n    console.log(`\\n事件 ${event.序号}:`);\n    console.log(`  类型: ${event.事件类型}`);\n    console.log(`  时间戳: ${event.时间戳}`);\n    console.log(`  数据:`, JSON.stringify(event.数据内容, null, 2));\n    if (event.解析错误) {\n      console.log(`  错误: ${event.解析错误}`);\n    }\n  });\n} else {\n  console.log('=== 转换失败 ===');\n  console.log('错误信息:', input.error);\n}\n\n// 返回简化的结果用于后续处理\nreturn {\n  转换状态: input.status,\n  事件总数: input.总事件数 || 0,\n  转换时间: input.处理时间,\n  事件列表: input.详细结果?.map(event => ({\n    序号: event.序号,\n    类型: event.事件类型,\n    数据: event.数据内容\n  })) || [],\n  完整结果: input\n};"
+      },
+      "id": "final-output",
+      "name": "📋 查看结果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        300
+      ]
     }
   ],
   "connections": {
@@ -104,6 +117,17 @@
         [
           {
             "node": "处理转换结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "处理转换结果": {
+      "main": [
+        [
+          {
+            "node": "📋 查看结果",
             "type": "main",
             "index": 0
           }

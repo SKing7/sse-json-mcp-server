@@ -1,0 +1,123 @@
+{
+  "name": "SSE转换器 - 带结果展示",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-node",
+      "name": "开始转换",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 在这里输入或粘贴您的SSE数据\nconst sseData = `event:onlineSearch\ndata:{\"eventIndex\":3,\"content\":{\"details\":[{\"stage\":\"webSearchKeywords\",\"title\":\"3个搜索关键词\",\"content\":[\"2025年8月1日 今日新闻\",\"2025年8月1日 国内国际新闻\",\"2025年8月1日 热点事件\"],\"icon\":\"\",\"url\":\"\",\"toolName\":null}]}}\n\nevent:webSearch\ndata:{\"sub_type\":\"webSearch\",\"eventIndex\":4,\"type\":\"ClientEvent\",\"content\":\"全网收集资料中\"}\n\nevent:webSearch\ndata:{\"sub_type\":\"webSearch\",\"eventIndex\":5,\"type\":\"ClientEvent\",\"content\":\"分析海量数据中\"}\n`;\n\nreturn {\n  rawSseData: sseData,\n  format: 'single'\n};"
+      },
+      "id": "code-input",
+      "name": "输入SSE数据",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:3001/api/convert/sse-data",
+        "requestMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "rawData",
+              "value": "={{ $json.rawSseData }}"
+            },
+            {
+              "name": "format", 
+              "value": "={{ $json.format }}"
+            }
+          ]
+        }
+      },
+      "id": "http-request",
+      "name": "调用转换API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\nif (!response.success) {\n  return {\n    html: `<html><body><h2 style=\"color: red;\">❌ 转换失败</h2><p>错误: ${response.error}</p><pre>${JSON.stringify(response, null, 2)}</pre></body></html>`\n  };\n}\n\nconst events = response.data || [];\nlet html = `\n<html>\n<head>\n  <title>SSE转换结果</title>\n  <style>\n    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }\n    .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .success { color: #28a745; }\n    .event { margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background: #f9f9f9; }\n    .event-type { font-weight: bold; color: #007bff; }\n    .timestamp { color: #666; font-size: 0.9em; }\n    pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h1 class=\"success\">✅ SSE转换成功!</h1>\n    <p><strong>转换事件数:</strong> ${response.count}</p>\n    <p><strong>转换格式:</strong> ${response.format}</p>\n    <p><strong>处理时间:</strong> ${new Date().toLocaleString('zh-CN')}</p>\n    <h2>事件详情:</h2>\n`;\n\nevents.forEach((event, index) => {\n  const sseValue = event.value;\n  const eventTypeMatch = sseValue.match(/event:([^\\n]+)/);\n  const eventType = eventTypeMatch ? eventTypeMatch[1].trim() : 'unknown';\n  const dataMatch = sseValue.match(/data:([^\\n]+)/);\n  \n  let parsedData = 'N/A';\n  let dataError = '';\n  \n  if (dataMatch) {\n    try {\n      const jsonData = JSON.parse(dataMatch[1].trim());\n      parsedData = JSON.stringify(jsonData, null, 2);\n    } catch (e) {\n      dataError = ` (JSON解析失败: ${e.message})`;\n      parsedData = dataMatch[1].trim();\n    }\n  }\n  \n  html += `\n    <div class=\"event\">\n      <div class=\"event-type\">事件 ${index + 1}: ${eventType}${dataError}</div>\n      <div class=\"timestamp\">时间戳: ${event.timestamp}</div>\n      <div><strong>数据内容:</strong></div>\n      <pre>${parsedData}</pre>\n      <details>\n        <summary>原始SSE数据</summary>\n        <pre>${sseValue}</pre>\n      </details>\n    </div>\n  `;\n});\n\nhtml += `\n    <h2>完整API响应:</h2>\n    <pre>${JSON.stringify(response, null, 2)}</pre>\n  </div>\n</body>\n</html>\n`;\n\nreturn { html, events: response.data, summary: { count: response.count, format: response.format } };"
+      },
+      "id": "format-html",
+      "name": "生成HTML结果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "content": "={{ $json.html }}",
+        "contentType": "text/html"
+      },
+      "id": "respond-html",
+      "name": "显示结果页面",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1040, 300]
+    }
+  ],
+  "connections": {
+    "开始转换": {
+      "main": [
+        [
+          {
+            "node": "输入SSE数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "输入SSE数据": {
+      "main": [
+        [
+          {
+            "node": "调用转换API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "调用转换API": {
+      "main": [
+        [
+          {
+            "node": "生成HTML结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "生成HTML结果": {
+      "main": [
+        [
+          {
+            "node": "显示结果页面",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
